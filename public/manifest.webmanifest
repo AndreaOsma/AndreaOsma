@@ -1,0 +1,16 @@
+{
+  "name": "Andrea Osma | Portfolio",
+  "short_name": "AndreaOsma",
+  "description": "Systems and Cybersecurity Engineer Portfolio",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#03060d",
+  "theme_color": "#06aa22",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

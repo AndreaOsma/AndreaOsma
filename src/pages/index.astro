@@ -1,0 +1,866 @@
+---
+import '../styles/global.css';
+import { marked } from 'marked';
+import { ClientRouter } from 'astro:transitions';
+
+const githubUsername = 'AndreaOsma';
+const githubApi = `https://api.github.com/users/${githubUsername}/repos?per_page=100&sort=updated`;
+const readmeUrl = `https://raw.githubusercontent.com/AndreaOsma/${githubUsername}/main/README.md`;
+
+let githubFeatured = [];
+let readmeHtml = '';
+
+try {
+  // Fetch Repos
+  const repoResponse = await fetch(githubApi, {
+    headers: {
+      Accept: 'application/vnd.github+json',
+      'User-Agent': 'andreaosma-portfolio'
+    }
+  });
+
+  if (repoResponse.ok) {
+    const repos = await repoResponse.json();
+    githubFeatured = repos
+      .filter((repo) => !repo.fork)
+      .sort((a, b) => {
+        if (b.stargazers_count !== a.stargazers_count) {
+          return b.stargazers_count - a.stargazers_count;
+        }
+        return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+      })
+      .slice(0, 6);
+  }
+
+  // Fetch README
+  const readmeResponse = await fetch(readmeUrl);
+  if (readmeResponse.ok) {
+    const markdown = await readmeResponse.text();
+    readmeHtml = await marked.parse(markdown);
+  }
+} catch (e) {
+  console.error('Error fetching data:', e);
+}
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Andrea Osma | Portfolio</title>
+    <link id="dynamic-favicon" rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌙</text></svg>" />
+    <meta
+      name="description"
+      content="Systems and Cybersecurity Engineer | DevSecOps | Cloud Security"
+    />
+
+    <!-- Open Graph / Social Media -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://andreaosma.com/" />
+    <meta property="og:title" content="Andrea Osma | Portfolio" />
+    <meta property="og:description" content="Systems and Cybersecurity Engineer | DevSecOps | Cloud Security" />
+    <meta property="og:image" content="https://andreaosma.com/og-image.png" />
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#03060d" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+
+    <ClientRouter />
+
+    <script is:inline>
+      (() => {
+        const savedTheme = localStorage.getItem('theme');
+        const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const initialTheme = savedTheme || (systemDark ? 'dark' : 'light');
+        document.documentElement.dataset.theme = initialTheme;
+      })();
+    </script>
+  </head>
+  <body>
+    <!-- Flag #1: flag{w3lc0m3_t0_th3_m4tr1x} -->
+    <div class="glow-layer"></div>
+    <canvas id="matrix-canvas" style="position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:0;display:none;pointer-events:none;"></canvas>
+    <canvas id="clouds-canvas"></canvas>
+    <canvas id="nodes-canvas"></canvas>
+
+    <div id="afk-screen">
+      <div id="afk-logo">AndreaOS</div>
+    </div>
+
+    <!-- Terminal Overlay -->
+    <dialog id="terminal-dialog" class="terminal-dialog">
+      <div class="terminal-header" id="terminal-header">
+        <div class="terminal-dots">
+          <button class="dot-red" id="term-dot-red" title="Close"></button>
+          <button class="dot-yellow" id="term-dot-yellow" title="Minimize"></button>
+          <button class="dot-green" id="term-dot-green" title="Maximize"></button>
+        </div>
+        <div class="terminal-title" id="terminal-title">andrea@osma:~ (zsh)</div>
+      </div>
+      <div class="terminal-body custom-scroll" id="terminal-body">
+        <!-- Contenido dinámico -->
+      </div>
+      <div class="terminal-input-line">
+        <span class="term-prompt" id="term-prompt">andrea@osma:~$</span>
+        <input type="text" id="terminal-input" autocomplete="off" spellcheck="false" placeholder="..." />
+      </div>
+      <div class="terminal-footer">
+        <kbd>TAB</kbd> autocomplete • <kbd>ESC</kbd> close
+      </div>
+    </dialog>
+
+    <!-- Source Code Dialog -->
+    <dialog id="source-dialog" class="source-dialog">
+      <div class="source-header">
+        <span>Source: index.astro</span>
+        <button class="close-btn" id="close-source">Close</button>
+      </div>
+      <div class="source-body custom-scroll">
+        <pre><code id="source-code"></code></pre>
+      </div>
+    </dialog>
+
+    <main id="main-content">
+      <div class="toolbar">
+        <button id="toolbar-terminal-btn" class="theme-toggle terminal-open-btn" type="button" aria-label="Abrir terminal">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+          Terminal
+        </button>
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Cambiar tema">
+          Modo noche
+        </button>
+      </div>
+
+      <div class="bento-grid staggered-reveal">
+        <!-- Celda Identidad -->
+        <section class="card bento-hero reveal-item">
+          <div class="terminal-text" id="typewriter-container">
+            <span id="typewriter-text"></span><span class="cursor"></span>
+          </div>
+          <h1 class="hero-name">Andrea Osma</h1>
+          <p class="headline">
+            Systems and Cybersecurity Engineer
+          </p>
+          
+          <div class="stack-pills">
+            <span class="pill active" data-filter="all">All</span>
+            <span class="pill" data-filter="Astro">Astro</span>
+            <span class="pill" data-filter="TypeScript">TypeScript</span>
+            <span class="pill" data-filter="NixOS">NixOS</span>
+            <span class="pill" data-filter="Docker">Docker</span>
+            <span class="pill" data-filter="Nomad">Nomad</span>
+            <span class="pill" data-filter="DevSecOps">DevSecOps</span>
+          </div>
+
+          <div class="hero-bottom-row">
+            <div class="status-indicator-inline">
+              <span class="status-dot"></span>
+              <span class="status-text" id="gh-status">NixOS Node Online</span>
+            </div>
+
+            <div class="music-player-mini">
+              <div class="album-art">
+                <img src="/starman-v2.jpg" alt="David Bowie - Ziggy Stardust" />
+              </div>
+              <div class="track-info">
+                <span class="track-name">Starman</span>
+                <span class="track-artist">David Bowie</span>
+                <div class="fake-visualizer">
+                  <span></span><span></span><span></span><span></span><span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="hero-links" aria-label="Enlaces sociales">
+            <a href="https://linkedin.com/in/AndreaOsmaRafael" target="_blank" rel="noreferrer" title="LinkedIn">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6.94 8.5a1.56 1.56 0 1 1 0-3.12 1.56 1.56 0 0 1 0 3.12ZM5.6 18.4h2.68v-8.27H5.6v8.27Zm4.36-8.27h2.57v1.13h.04c.36-.68 1.23-1.4 2.54-1.4 2.71 0 3.21 1.78 3.21 4.1v4.44h-2.68v-3.94c0-.94-.02-2.15-1.31-2.15-1.31 0-1.52 1.02-1.52 2.08v4.01H9.96v-8.27Z"></path></svg>
+            </a>
+            <a href="https://github.com/AndreaOsma" target="_blank" rel="noreferrer" title="GitHub">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.18-3.37-1.18-.46-1.15-1.11-1.46-1.11-1.46-.91-.62.07-.61.07-.61 1 .07 1.52 1.03 1.52 1.03.9 1.54 2.35 1.1 2.92.84.09-.65.35-1.1.64-1.35-2.22-.25-4.55-1.11-4.55-4.95 0-1.09.39-1.99 1.03-2.69-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.03a9.47 9.47 0 0 1 5 0c1.9-1.3 2.74-1.03 2.74-1.03.55 1.37.2 2.39.1 2.64.64.7 1.03 1.6 1.03 2.69 0 3.85-2.34 4.7-4.57 4.95.36.31.68.91.68 1.84V21c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"></path></svg>
+            </a>
+            <a href="mailto:hello@andreaosma.com" title="Email">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5v-11Zm2.3-.5 5.7 5.03L17.7 6H6.3Zm11.7 1.66-4.95 4.37a1.5 1.5 0 0 1-1.98 0L6.1 7.66V17.5c0 .22.18.4.4.4h11c.22 0 .4-.18.4-.4V7.66Z"></path></svg>
+            </a>
+          </div>
+        </section>
+
+        <!-- Celda README Dinámico -->
+        <section class="card bento-readme reveal-item">
+          <div class="readme-content custom-scroll" set:html={readmeHtml || '<p>Cargando biografía desde GitHub...</p>'}></div>
+        </section>
+
+        <!-- Proyectos Directos (GitHub Highlights) -->
+        {
+          githubFeatured.length > 0 ? (
+            githubFeatured.map((repo) => (
+              <article class="card bento-project project-card reveal-item" data-tags={`${repo.language} ${repo.name} ${repo.description}`.toLowerCase()}>
+                <h4>
+                  <a href={repo.html_url} target="_blank" rel="noreferrer">
+                    {repo.name}
+                  </a>
+                </h4>
+                <p>{repo.description || 'Repositorio público.'}</p>
+                <div class="repo-meta">
+                  <span class="highlight">⭐ {repo.stargazers_count}</span>
+                  <span class="highlight-lang">{repo.language || 'Code'}</span>
+                </div>
+              </article>
+            ))
+          ) : (
+            <article class="card bento-project project-card reveal-item" style="grid-column: span 2;">
+              <h4>GitHub API Rate Limit</h4>
+              <p>Mis proyectos se cargan en tiempo real desde GitHub, pero parece que hemos alcanzado el límite de peticiones. Por favor, vuelve en unos minutos o visita mi perfil directamente.</p>
+              <div class="repo-meta">
+                <a href="https://github.com/AndreaOsma" target="_blank" class="highlight">Ver perfil de GitHub →</a>
+              </div>
+            </article>
+          )
+        }
+
+      </div>
+
+      <footer class="site-footer">
+        <small>© {new Date().getFullYear()} Andrea Osma</small>
+        <small>v1.8.8 • Built with Astro</small>
+      </footer>
+    </main>
+
+    <script is:inline>
+      document.addEventListener('astro:page-load', () => {
+        // Flag #2: flag{n1x0s_n0d3_s3cur3d}
+        console.log("%c[SYSTEM] Unauthorized access attempt logged. flag{n1x0s_n0d3_s3cur3d}", "color: #ff5f56; font-weight: bold; background: #000; padding: 5px;");
+
+        // --- THEME ---
+        const button = document.getElementById('theme-toggle');
+        const setLabel = (theme) => {
+          if (button) button.textContent = theme === 'dark' ? 'Modo día' : 'Modo noche';
+        };
+        let currentTheme = document.documentElement.dataset.theme || 'dark';
+        setLabel(currentTheme);
+
+        const toggleTheme = () => {
+          currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+          document.documentElement.dataset.theme = currentTheme;
+          localStorage.setItem('theme', currentTheme);
+          setLabel(currentTheme);
+        };
+        button?.addEventListener('click', toggleTheme);
+
+        // --- KONAMI CODE ---
+        let konamiIdx = 0;
+        const konamiCode = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
+        window.addEventListener('keydown', (e) => {
+          if (e.key === konamiCode[konamiIdx]) {
+            konamiIdx++;
+            if (konamiIdx === konamiCode.length) {
+              document.documentElement.dataset.theme = 'retro';
+              konamiIdx = 0;
+            }
+          } else { konamiIdx = 0; }
+        });
+
+        // --- TYPEWRITER ---
+        const typewriterSpan = document.getElementById('typewriter-text');
+        const textToType = 'andrea@osma:~$ ./whoami.sh';
+        let typeIdx = 0;
+        if (typewriterSpan) {
+          typewriterSpan.textContent = '';
+          const type = () => {
+            if (typeIdx < textToType.length) {
+              typewriterSpan.textContent += textToType.charAt(typeIdx);
+              typeIdx++;
+              setTimeout(type, Math.random() * 50 + 40);
+            }
+          };
+          type();
+        }
+
+        // --- TILT EFFECT ---
+        const setupTilt = () => {
+          const cards = document.querySelectorAll('.card');
+          cards.forEach(card => {
+            card.addEventListener('mousemove', (e) => {
+              if (document.body.classList.contains('tty-mode')) return;
+              const rect = card.getBoundingClientRect();
+              const x = e.clientX - rect.left;
+              const y = e.clientY - rect.top;
+              const centerX = rect.width / 2;
+              const centerY = rect.height / 2;
+              const rotateX = (y - centerY) / 15;
+              const rotateY = (centerX - x) / 15;
+              card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+            });
+            card.addEventListener('mouseleave', () => {
+              card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0)';
+            });
+          });
+        };
+        setupTilt();
+
+        // --- TERMINAL, CTF & VFS ---
+        const termDialog = document.getElementById('terminal-dialog');
+        const termHeader = document.getElementById('terminal-header');
+        const termInput = document.getElementById('terminal-input');
+        const termBody = document.getElementById('terminal-body');
+        const sourceDialog = document.getElementById('source-dialog');
+        const sourceCode = document.getElementById('source-code');
+        const closeSource = document.getElementById('close-source');
+        const termPrompt = document.getElementById('term-prompt');
+
+        let isVimMode = false;
+        let isPasswordMode = false;
+        let isRootMode = false;
+        let sudoAttempts = 0;
+        let currentPath = '/';
+        let hasBooted = false;
+        let commandHistory = JSON.parse(localStorage.getItem('term-history') || '[]');
+        let historyIndex = -1;
+        const availableCommands = ['whoami', 'skills', 'code', 'matrix', 'gravity', 'arkanoid', 'tty', 'play', 'ls', 'cd', 'cat', 'submit', 'status', 'clear', 'exit', 'theme', 'github', 'linkedin', 'neofetch', 'help', 'chaos', 'legacy', 'tcpdump', 'sudo', 'ping', 'traceroute', 'listen'];
+
+        const vfs = {
+          '/': { type: 'dir', children: ['about/', 'projects/', 'skills/', 'secret.txt'] },
+          '/about/': { type: 'dir', children: ['bio.txt', 'goals.txt'] },
+          '/about/bio.txt': { type: 'file', content: 'Andrea Osma - Systems and Cybersecurity Engineer.' },
+          '/about/goals.txt': { type: 'file', content: 'Building secure systems and beautiful interfaces.' },
+          '/projects/': { type: 'dir', children: ['CampusPilot.txt', 'Homelab.txt'] },
+          '/projects/CampusPilot.txt': { type: 'file', content: 'Campus Pilot: Smart mobility for universities.' },
+          '/projects/Homelab.txt': { type: 'file', content: 'Homelab: Personal data center with NixOS and Nomad.' },
+          '/skills/': { type: 'dir', children: ['tech.txt'] },
+          '/skills/tech.txt': { type: 'file', content: 'NixOS, Nomad, Docker, Astro, TypeScript, Cibersec.' },
+          '/secret.txt': { type: 'file', content: 'flag{w3lc0m3_t0_th3_m4tr1x}' }
+        };
+
+        let foundFlags = JSON.parse(localStorage.getItem('ctf-flags') || '[]');
+        const ALL_FLAGS = [
+          'flag{w3lc0m3_t0_th3_m4tr1x}',
+          'flag{n1x0s_n0d3_s3cur3d}',
+          'flag{t0uch_1d_byp4ss_f41l3d}',
+          'flag{st4rm4n_w41t1ng_1n_th3_sky}'
+        ];
+
+        const addTermLine = (text, type = '') => {
+          const div = document.createElement('div');
+          div.className = `term-line ${type}`;
+          div.innerHTML = text;
+          termBody.appendChild(div);
+          termBody.scrollTop = termBody.scrollHeight;
+          return div;
+        };
+
+        const bootSequence = async () => {
+          hasBooted = true;
+          termBody.innerHTML = '';
+          const lines = [
+            'Loading AndreaOS kernel 6.12.0-x86_64...',
+            'Mounting VFS... OK',
+            'Initializing system services...',
+            'Starting Zsh 5.9...',
+            'AndreaOS v1.8.6 (LTS) - Authorized Access Only.',
+            '<span style="opacity: 0.6;">[DISCLAIMER: This is a JS-based simulation, not a real shell.]</span>',
+            'Type "help" for a list of commands.'
+          ];
+          for (const line of lines) {
+            addTermLine(line);
+            await new Promise(r => setTimeout(r, Math.random() * 80 + 30));
+          }
+        };
+
+        const openTerminal = () => { 
+          termDialog.showModal(); 
+          if (!hasBooted) bootSequence();
+          termInput.focus(); 
+        };
+        const closeTerminal = () => { termDialog.close(); termInput.value = ''; isVimMode = false; document.body.classList.remove('tty-mode'); };
+
+        // --- BUTTON LISTENERS ---
+        document.getElementById('toolbar-terminal-btn')?.addEventListener('click', openTerminal);
+        document.getElementById('term-dot-red')?.addEventListener('click', closeTerminal);
+        document.getElementById('term-dot-yellow')?.addEventListener('click', closeTerminal);
+        document.getElementById('term-dot-green')?.addEventListener('click', () => {
+          document.body.classList.toggle('tty-mode');
+        });
+
+        window.addEventListener('keydown', (e) => {
+          if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); termDialog.open ? closeTerminal() : openTerminal(); }
+        });
+
+        // --- MOBILE GESTURE (Pull Down to Open Terminal) ---
+        let touchStartY = 0;
+        document.addEventListener('touchstart', (e) => {
+          touchStartY = e.touches[0].clientY;
+        }, { passive: false });
+
+        document.addEventListener('touchmove', (e) => {
+          const touchY = e.touches[0].clientY;
+          const pullDistance = touchY - touchStartY;
+          if (window.scrollY <= 0 && pullDistance > 0) { e.preventDefault(); }
+        }, { passive: false });
+
+        document.addEventListener('touchend', (e) => {
+          const touchEndY = e.changedTouches[0].clientY;
+          const pullDistance = touchEndY - touchStartY;
+          if (window.scrollY <= 0 && pullDistance > 120) {
+            if (!termDialog.open) openTerminal();
+          }
+        });
+
+        const enterVim = () => {
+          isVimMode = true;
+          termBody.innerHTML = `<div class='term-line'>~</div><div class='term-line'>~&nbsp;&nbsp;VIM - Vi IMproved</div><div class='term-line'>~</div><div class='term-line'>~&nbsp;&nbsp;type :q&lt;Enter&gt; to exit</div>`;
+          termInput.placeholder = "Escritura bloqueada. Usa comandos de Vim.";
+        };
+
+        const playStarman = () => {
+          try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            const ctx = new AudioContext();
+            const F4 = 349.23, G4 = 392.00, A4 = 440.00, Bb4 = 466.16, C5 = 523.25, D5 = 587.33, E5 = 659.25, F5 = 698.46;
+            const score = [
+              {f: A4, d: 0.25}, {f: G4, d: 0.25}, {f: F4, d: 0.5}, {f: F5, d: 0.5}, 
+              {f: E5, d: 0.25}, {f: D5, d: 0.25}, {f: C5, d: 0.25}, {f: D5, d: 0.25}, 
+              {f: C5, d: 0.75}, {f: 0, d: 0.25},
+              {f: A4, d: 0.25}, {f: C5, d: 0.25}, {f: A4, d: 0.25}, {f: C5, d: 0.25}, 
+              {f: A4, d: 0.25}, {f: G4, d: 0.25}, {f: F4, d: 0.25}, {f: G4, d: 0.5},
+              {f: 0, d: 0.25},
+              {f: A4, d: 0.25}, {f: Bb4, d: 0.25}, {f: A4, d: 0.25}, {f: G4, d: 0.25}, 
+              {f: F4, d: 0.25}, {f: G4, d: 0.25}, {f: A4, d: 0.25}, {f: F4, d: 0.75}
+            ];
+            let time = ctx.currentTime;
+            addTermLine('Synthesizing AUTHENTIC Starman (120 BPM)...', 'success');
+            score.forEach(n => {
+              if (n.f > 0) {
+                [n.f, n.f * 1.003].forEach(freq => {
+                  const osc = ctx.createOscillator();
+                  const gain = ctx.createGain();
+                  osc.type = 'square';
+                  osc.frequency.setValueAtTime(freq, time);
+                  gain.gain.setValueAtTime(0.04, time);
+                  gain.gain.exponentialRampToValueAtTime(0.0001, time + n.d);
+                  osc.connect(gain); gain.connect(ctx.destination);
+                  osc.start(time); osc.stop(time + n.d);
+                });
+              }
+              time += n.d;
+            });
+          } catch(e) { addTermLine('Audio error.', 'error'); }
+        };
+
+        const executeCommand = (input) => {
+          const rawInput = input.trim();
+          if (rawInput === '') return;
+          
+          if (isPasswordMode) {
+            if (rawInput === 'st4rm4n' || rawInput === 'root' || ALL_FLAGS.includes(rawInput)) {
+              isRootMode = true; isPasswordMode = false; termInput.type = "text";
+              termPrompt.textContent = "root@osma:#"; termPrompt.style.color = "#ff5f56";
+              termHeader.classList.add('root-mode');
+              addTermLine('Access Granted. Welcome, Architect.', 'success');
+            } else {
+              sudoAttempts++;
+              if (sudoAttempts >= 3) {
+                addTermLine('SECURITY BREACH. ACCESS LOCKED.', 'error');
+                document.body.classList.add('glitch-mode');
+                setTimeout(() => location.reload(), 4000);
+              } else { addTermLine('Access Denied. Try again.', 'error'); }
+            }
+            return;
+          }
+
+          commandHistory.unshift(rawInput);
+          if (commandHistory.length > 50) commandHistory.pop();
+          localStorage.setItem('term-history', JSON.stringify(commandHistory));
+          historyIndex = -1;
+
+          if (isVimMode) {
+            if ([':q', ':q!', ':wq', ':x'].includes(rawInput)) {
+              isVimMode = false; termInput.placeholder = "..."; termBody.innerHTML = ''; addTermLine('Exited Vim.');
+            } else { addTermLine(`Vim: No command '${rawInput}' found. Type :q to exit.`, 'error'); }
+            return;
+          }
+
+          const args = rawInput.split(' ');
+          const cmd = args[0].toLowerCase();
+          addTermLine(`<span class="term-prompt">${isRootMode ? 'root@osma:#' : 'andrea@osma:' + currentPath + '$'}</span> ${rawInput}`);
+          termInput.value = '';
+
+          if (cmd === 'help' || cmd === '?') {
+            const helpText = [
+              '<br/><strong style="color:var(--accent)">System & Security</strong>',
+              '&nbsp;&nbsp;tcpdump&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- Simulate network packet sniffing',
+              '&nbsp;&nbsp;sudo su&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- Attempt privilege escalation',
+              '&nbsp;&nbsp;tty&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- Switch to CLI-only mode',
+              '&nbsp;&nbsp;ls, cd, cat&nbsp;- Navigate Virtual File System',
+              '&nbsp;&nbsp;ping, traceroute&nbsp;- Network diagnostics',
+              '<br/><strong style="color:var(--accent)">General Info</strong>',
+              '&nbsp;&nbsp;whoami, skills, neofetch, theme, github, linkedin, code',
+              '<br/><strong style="color:var(--accent)">Easter Eggs</strong>',
+              '&nbsp;&nbsp;play starman, gravity, arkanoid, matrix, legacy, chaos, listen',
+              '<br/><strong style="color:var(--accent)">CTF</strong>',
+              '&nbsp;&nbsp;submit [flg], status'
+            ];
+            helpText.forEach(line => addTermLine(line));
+          }
+          else if (cmd === 'whoami') addTermLine('Andrea Osma - Systems & Cybersecurity Engineer');
+          else if (cmd === 'skills') addTermLine('Frontend, DevSecOps, Cloud Security, NixOS, Nomad, Docker, Cibersec.');
+          else if (cmd === 'neofetch') {
+             addTermLine('<pre style="color:var(--accent); line-height:1; font-size:0.75rem;">       .---.       OS: AndreaOS 1.8.6\n      /     \\      Kernel: 6.12.0-nixos\n      | () () |     CPU: i5-9400F\n       \\  ^  /      RAM: 1.6GB / 48GB\n        |||||       Host: andreaosma.com</pre>');
+          }
+          else if (cmd === 'ping') {
+            const target = args[1] || 'google.com';
+            addTermLine(`PING ${target} (142.250.184.238): 56 data bytes`);
+            let pings = 0;
+            const pi = setInterval(() => {
+              addTermLine(`64 bytes from 142.250.184.238: icmp_seq=${pings} ttl=117 time=${(Math.random()*15+10).toFixed(3)} ms`);
+              pings++;
+              if (pings >= 4) { clearInterval(pi); addTermLine(`--- ${target} ping statistics ---<br/>4 packets transmitted, 4 packets received, 0.0% packet loss`); }
+            }, 500);
+          }
+          else if (cmd === 'traceroute') {
+            const target = args[1] || 'andreaosma.com';
+            addTermLine(`traceroute to ${target}, 30 hops max, 60 byte packets`);
+            [
+              '1  gateway.homelab (192.168.1.1)  1.234 ms',
+              '2  10.234.0.1 (10.234.0.1)  2.456 ms',
+              '3  nixos-node.local (192.168.1.185)  3.123 ms',
+              '4  * * *',
+              '5  final-destination.com (1.3.3.7)  15.678 ms'
+            ].forEach((hop, i) => setTimeout(() => addTermLine(hop), i * 300));
+          }
+          else if (cmd === 'listen') {
+             addTermLine('Requesting microphone access for signal analysis...', 'success');
+             navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+               addTermLine('Surveillance mode active. Signal detected.', 'success');
+               const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+               const analyser = audioCtx.createAnalyser();
+               const source = audioCtx.createMediaStreamSource(stream);
+               source.connect(analyser);
+               analyser.fftSize = 32;
+               const bufferLength = analyser.frequencyBinCount;
+               const dataArray = new Uint8Array(bufferLength);
+               const visualLine = addTermLine('Signal: ', 'success');
+               const draw = () => {
+                 if (!termDialog.open) { stream.getTracks().forEach(t => t.stop()); return; }
+                 analyser.getByteFrequencyData(dataArray);
+                 let bars = '';
+                 for(let i=0; i<8; i++) bars += '|'.repeat(dataArray[i]/32) + '.'.repeat(Math.max(0, 8 - dataArray[i]/32));
+                 visualLine.innerHTML = `Signal: <span style="font-family:monospace">${bars}</span>`;
+                 requestAnimationFrame(draw);
+               };
+               draw();
+             }).catch(() => addTermLine('Access denied.', 'error'));
+          }
+          else if (cmd === 'theme') { toggleTheme(); addTermLine('Theme toggled.'); }
+          else if (cmd === 'github') { window.open('https://github.com/AndreaOsma', '_blank'); addTermLine('Opening GitHub...'); }
+          else if (cmd === 'linkedin') { window.open('https://linkedin.com/in/AndreaOsmaRafael', '_blank'); addTermLine('Opening LinkedIn...'); }
+          else if (cmd === 'sudo' && args[1] === 'su') { isPasswordMode = true; termInput.type = "password"; addTermLine('Password:'); }
+          else if (cmd === 'tcpdump') {
+            addTermLine('Listening on eth0...', 'success');
+            let c = 0;
+            const sn = setInterval(() => {
+              addTermLine(`[${new Date().toLocaleTimeString()}] IP 192.168.1.${Math.floor(Math.random()*255)} > 10.0.0.1: TCP, length ${Math.floor(Math.random()*1000)}`);
+              if (++c > 15) clearInterval(sn);
+            }, 200);
+          }
+          else if (cmd === 'hex') {
+            const s = args.slice(1).join(' ') || 'AndreaOsma';
+            addTermLine(`Hex: ${s.split('').map(c => c.charCodeAt(0).toString(16)).join(' ')}`);
+          }
+          else if (cmd === 'cowsay') {
+            const m = args.slice(1).join(' ') || 'Mooo!';
+            addTermLine(`<pre style="line-height:1"> ${'_'.repeat(m.length + 2)}\n< ${m} >\n ${'-'.repeat(m.length + 2)}\n        \\   ^__^\n         \\  (oo)\\_______\n            (__)\\       )\\/\\\n                ||----w |\n                ||     ||</pre>`);
+          }
+          else if (cmd === 'matrix') {
+            document.documentElement.dataset.theme = 'matrix'; addTermLine('Matrix mode engaged.', 'success');
+            const canvas = document.getElementById('matrix-canvas');
+            if (canvas) {
+              canvas.style.display = 'block'; const ctx = canvas.getContext('2d');
+              canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+              const chars = 'ｦｧｨｩｪｫｬｭｮｯｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789'.split(''); const fontSize = 16; const cols = canvas.width/fontSize; const drops = [];
+              for(let x=0; x<cols; x++) drops[x] = 1;
+              setInterval(() => {
+                ctx.fillStyle = 'rgba(0,0,0,0.05)'; ctx.fillRect(0,0,canvas.width,canvas.height);
+                ctx.fillStyle = '#0F0'; ctx.font = fontSize + 'px monospace';
+                for(let i=0; i<drops.length; i++) {
+                  ctx.fillText(chars[Math.floor(Math.random()*chars.length)], i*fontSize, drops[i]*fontSize);
+                  if(drops[i]*fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                  drops[i]++;
+                }
+              }, 33);
+            }
+          }
+          else if (cmd === 'legacy') { document.documentElement.dataset.theme = 'legacy'; addTermLine('Legacy Mode active.'); }
+          else if (cmd === 'tty') { document.body.classList.add('tty-mode'); addTermLine('TTY Mode.'); }
+          else if (cmd === 'startx') { document.body.classList.remove('tty-mode'); }
+          else if (cmd === 'ls') { const e = vfs[currentPath]; if (e) addTermLine(e.children.join('  ')); }
+          else if (cmd === 'cd') {
+            const d = args[1]; if (!d || d === '/') currentPath = '/';
+            else if (d === '..') { if (currentPath !== '/') { const p = currentPath.split('/').filter(Boolean); p.pop(); currentPath = p.length ? '/' + p.join('/') + '/' : '/'; } }
+            else { const n = currentPath + (d.endsWith('/') ? d : d + '/'); if (vfs[n]) currentPath = n; else addTermLine(`No dir: ${d}`, 'error'); }
+          }
+          else if (cmd === 'cat') {
+            const f = args[1]; const p = currentPath + (f || '');
+            if (vfs[p] && vfs[p].type === 'file') addTermLine(vfs[p].content); else addTermLine(`No file: ${f}`, 'error');
+          }
+          else if (cmd === 'play' && args[1] === 'starman') playStarman();
+          else if (cmd === 'arkanoid') startArkanoid();
+          else if (cmd === 'code') { fetch(window.location.href).then(r => r.text()).then(t => { sourceCode.textContent = t.slice(0,5000); sourceDialog.showModal(); }); }
+          else if (cmd === 'submit') {
+            const f = args[1]; if (ALL_FLAGS.includes(f)) { if (!foundFlags.includes(f)) { foundFlags.push(f); localStorage.setItem('ctf-flags', JSON.stringify(foundFlags)); addTermLine('FLAG VALIDATED.', 'success'); } } else addTermLine('Invalid.', 'error');
+          }
+          else if (cmd === 'status') addTermLine(`Flags: ${foundFlags.length}/${ALL_FLAGS.length}`);
+          else if (cmd === 'clear') termBody.innerHTML = '';
+          else if (cmd === 'exit') closeTerminal();
+          else if (cmd !== '') addTermLine(`Unknown command: ${cmd}`, 'error');
+        };
+
+        // --- DRAGGABLE ---
+        let isDragging = false; let dragOffset = { x: 0, y: 0 };
+        termHeader?.addEventListener('mousedown', (e) => {
+          if (document.body.classList.contains('tty-mode')) return;
+          isDragging = true; const r = termDialog.getBoundingClientRect();
+          dragOffset.x = e.clientX - r.left; dragOffset.y = e.clientY - r.top;
+          termHeader.style.cursor = 'grabbing';
+        });
+        window.addEventListener('mousemove', (e) => {
+          if (isDragging) {
+            termDialog.style.left = `${e.clientX - dragOffset.x + termDialog.offsetWidth / 2}px`;
+            termDialog.style.top = `${e.clientY - dragOffset.y + termDialog.offsetHeight / 2}px`;
+          }
+        });
+        window.addEventListener('mouseup', () => { isDragging = false; if (termHeader) termHeader.style.cursor = 'grab'; });
+
+        // --- KEYBOARD ---
+        termInput?.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { executeCommand(termInput.value); termInput.value = ''; }
+          else if (e.key === 'ArrowUp') { e.preventDefault(); if (historyIndex < commandHistory.length - 1) { historyIndex++; termInput.value = commandHistory[historyIndex]; } }
+          else if (e.key === 'ArrowDown') { e.preventDefault(); if (historyIndex > 0) { historyIndex--; termInput.value = commandHistory[historyIndex]; } else { historyIndex = -1; termInput.value = ''; } }
+          else if (e.key === 'Tab') { e.preventDefault(); const v = termInput.value.toLowerCase(); const m = availableCommands.find(c => c.startsWith(v)); if (m) termInput.value = m; }
+        });
+
+        closeSource?.addEventListener('click', () => sourceDialog.close());
+
+        // --- AFK MODE ---
+        let afkTime = 0;
+        const afkScreen = document.getElementById('afk-screen');
+        const afkLogo = document.getElementById('afk-logo');
+        let logoX = 50, logoY = 50, dX = 2, dY = 2;
+
+        const resetAFK = () => {
+          afkTime = 0;
+          if (afkScreen) afkScreen.style.display = 'none';
+        };
+        window.addEventListener('mousemove', resetAFK);
+        window.addEventListener('keydown', resetAFK);
+        window.addEventListener('click', resetAFK);
+
+        setInterval(() => {
+          afkTime++;
+          if (afkTime > 10000) { // ~5 minutos de inactividad (30ms * 10000)
+            if (afkScreen) afkScreen.style.display = 'block';
+            logoX += dX; logoY += dY;
+            if (logoX <= 0 || logoX > window.innerWidth - 200) dX *= -1;
+            if (logoY <= 0 || logoY > window.innerHeight - 50) dY *= -1;
+            if (afkLogo) { afkLogo.style.left = logoX + 'px'; afkLogo.style.top = logoY + 'px'; }
+          }
+        }, 30);
+
+        // --- SKY BACKGROUNDS ---
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+        const isDayTheme = () => document.documentElement.dataset.theme === 'light';
+        const canAnimate = () => !document.hidden && !reduceMotion.matches;
+
+        const cCanvas = document.getElementById('clouds-canvas');
+        if (cCanvas) {
+          const cCtx = cCanvas.getContext('2d');
+          let clouds = [];
+          const resizeClouds = () => {
+            cCanvas.width = window.innerWidth;
+            cCanvas.height = window.innerHeight;
+          };
+          const seedClouds = () => {
+            clouds = Array.from({ length: 9 }, (_, idx) => ({
+              x: Math.random() * cCanvas.width,
+              y: (idx / 9) * cCanvas.height * 0.85 + Math.random() * 45,
+              vx: 0.08 + Math.random() * 0.2,
+              scale: 0.65 + Math.random() * 0.8,
+              alpha: 0.14 + Math.random() * 0.12
+            }));
+          };
+          window.addEventListener('resize', () => {
+            resizeClouds();
+            seedClouds();
+          });
+          resizeClouds();
+          seedClouds();
+
+          const drawCloud = (cloud) => {
+            const base = 70 * cloud.scale;
+            cCtx.beginPath();
+            cCtx.ellipse(cloud.x, cloud.y, base * 0.95, base * 0.48, 0, 0, Math.PI * 2);
+            cCtx.ellipse(cloud.x - base * 0.58, cloud.y + base * 0.08, base * 0.56, base * 0.34, 0, 0, Math.PI * 2);
+            cCtx.ellipse(cloud.x + base * 0.62, cloud.y + base * 0.03, base * 0.63, base * 0.38, 0, 0, Math.PI * 2);
+            cCtx.fillStyle = `rgba(255, 255, 255, ${cloud.alpha})`;
+            cCtx.fill();
+          };
+
+          const animateClouds = () => {
+            if (isDayTheme() && canAnimate()) {
+              cCtx.clearRect(0, 0, cCanvas.width, cCanvas.height);
+              clouds.forEach((cloud) => {
+                cloud.x += cloud.vx;
+                if (cloud.x > cCanvas.width + 120) cloud.x = -140;
+                drawCloud(cloud);
+              });
+            } else if (!isDayTheme()) {
+              cCtx.clearRect(0, 0, cCanvas.width, cCanvas.height);
+            }
+            requestAnimationFrame(animateClouds);
+          };
+          animateClouds();
+        }
+
+        // --- NODES CANVAS (constellation/night) ---
+        const nCanvas = document.getElementById('nodes-canvas');
+        if (nCanvas) {
+          const ctx = nCanvas.getContext('2d');
+          let pts = [];
+          const resize = () => { nCanvas.width = window.innerWidth; nCanvas.height = window.innerHeight; };
+          window.addEventListener('resize', resize); resize();
+          for(let i=0; i<50; i++) pts.push({ x: Math.random()*nCanvas.width, y: Math.random()*nCanvas.height, vx: (Math.random()-0.5)*0.5, vy: (Math.random()-0.5)*0.5 });
+          const animate = () => {
+            if (!isDayTheme() && canAnimate()) {
+              ctx.clearRect(0, 0, nCanvas.width, nCanvas.height);
+              ctx.fillStyle = 'rgba(106, 169, 255, 0.5)';
+              ctx.strokeStyle = 'rgba(106, 169, 255, 0.1)';
+              pts.forEach((p, i) => {
+                p.x += p.vx; p.y += p.vy;
+                if (p.x < 0 || p.x > nCanvas.width) p.vx *= -1;
+                if (p.y < 0 || p.y > nCanvas.height) p.vy *= -1;
+                ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI*2); ctx.fill();
+                for(let j=i+1; j<pts.length; j++) {
+                  const p2 = pts[j];
+                  const d = Math.hypot(p.x - p2.x, p.y - p2.y);
+                  if (d < 150) { ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p2.x, p2.y); ctx.stroke(); }
+                }
+              });
+            } else if (isDayTheme()) {
+              ctx.clearRect(0, 0, nCanvas.width, nCanvas.height);
+            }
+            requestAnimationFrame(animate);
+          };
+          animate();
+        }
+
+        // --- GRAVITY & ARKANOID (Matter.js) ---
+        const loadMatter = (cb) => {
+          if (window.Matter) return cb();
+          const s = document.createElement('script');
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js';
+          s.onload = cb; document.head.appendChild(s);
+        };
+
+        const startArkanoid = () => {
+          loadMatter(() => {
+            closeTerminal();
+            const { Engine, World, Bodies, Runner, Events } = Matter;
+            const engine = Engine.create(); engine.world.gravity.y = 0;
+            const cards = document.querySelectorAll('.card'); const bodies = [];
+            cards.forEach(el => {
+              const r = el.getBoundingClientRect();
+              const b = Bodies.rectangle(r.left + r.width/2, r.top + r.height/2, r.width, r.height, { isStatic: true, label: 'brick' });
+              el.style.position = 'fixed'; el.style.width = r.width + 'px'; el.style.height = r.height + 'px';
+              bodies.push({ el, body: b }); World.add(engine.world, b);
+            });
+            const ball = Bodies.circle(window.innerWidth/2, window.innerHeight - 200, 10, { restitution: 1, friction: 0, frictionAir: 0, inertia: Infinity, label: 'ball' });
+            Matter.Body.setVelocity(ball, { x: 5, y: -5 });
+            const paddle = Bodies.rectangle(window.innerWidth/2, window.innerHeight - 50, 150, 20, { isStatic: true, label: 'paddle' });
+            World.add(engine.world, [ball, paddle]);
+            World.add(engine.world, [Bodies.rectangle(window.innerWidth/2, -10, window.innerWidth, 20, { isStatic: true }), Bodies.rectangle(-10, window.innerHeight/2, 20, window.innerHeight, { isStatic: true }), Bodies.rectangle(window.innerWidth + 10, window.innerHeight/2, 20, window.innerHeight, { isStatic: true })]);
+            Runner.run(engine);
+            window.addEventListener('mousemove', (e) => Matter.Body.setPosition(paddle, { x: e.clientX, y: window.innerHeight - 50 }));
+            Events.on(engine, 'collisionStart', (e) => {
+              e.pairs.forEach(pair => {
+                const brick = pair.bodyA.label === 'brick' ? pair.bodyA : (pair.bodyB.label === 'brick' ? pair.bodyB : null);
+                if (brick) { const bObj = bodies.find(b => b.body === brick); if (bObj) { bObj.el.style.display = 'none'; World.remove(engine.world, brick); } }
+              });
+            });
+            (function rerender() {
+              bodies.forEach(({ el, body }) => { el.style.left = (body.position.x - el.offsetWidth/2) + 'px'; el.style.top = (body.position.y - el.offsetHeight/2) + 'px'; el.style.transform = `rotate(${body.angle}rad)`; });
+              ball.el = ball.el || (()=>{const d = document.createElement('div'); d.style.position='fixed'; d.style.width='20px'; d.style.height='20px'; d.style.background='var(--accent)'; d.style.borderRadius='50%'; d.style.zIndex='20000'; document.body.appendChild(d); return d;})();
+              ball.el.style.left = (ball.position.x - 10) + 'px'; ball.el.style.top = (ball.position.y - 10) + 'px';
+              paddle.el = paddle.el || (()=>{const d = document.createElement('div'); d.style.position='fixed'; d.style.width='150px'; d.style.height='20px'; d.style.background='#fff'; d.style.borderRadius='10px'; d.style.zIndex='20000'; document.body.appendChild(d); return d;})();
+              paddle.el.style.left = (paddle.position.x - 75) + 'px'; paddle.el.style.top = (paddle.position.y - 10) + 'px';
+              if (ball.position.y > window.innerHeight) Matter.Body.setPosition(ball, {x: window.innerWidth/2, y: window.innerHeight - 200});
+              requestAnimationFrame(rerender);
+            })();
+          });
+        };
+
+        const loadGravity = () => {
+          loadMatter(() => {
+            closeTerminal();
+            const { Engine, World, Bodies, Runner, MouseConstraint, Mouse } = Matter;
+            const engine = Engine.create();
+            const cards = document.querySelectorAll('.card'); const bodies = [];
+            cards.forEach(el => {
+              const r = el.getBoundingClientRect();
+              const b = Bodies.rectangle(r.left + r.width/2, r.top + r.height/2, r.width, r.height);
+              el.style.position = 'fixed'; el.style.width = r.width + 'px'; el.style.height = r.height + 'px'; el.style.zIndex = '1000';
+              bodies.push({ el, body: b }); World.add(engine.world, b);
+            });
+            const ground = Bodies.rectangle(window.innerWidth/2, window.innerHeight + 50, window.innerWidth, 100, { isStatic: true });
+            World.add(engine.world, [ground, Bodies.rectangle(-50, window.innerHeight/2, 100, window.innerHeight, { isStatic: true }), Bodies.rectangle(window.innerWidth + 50, window.innerHeight/2, 100, window.innerHeight, { isStatic: true })]);
+            const mouseConstraint = MouseConstraint.create(engine, { mouse: Mouse.create(document.body), constraint: { stiffness: 0.2 } });
+            World.add(engine.world, mouseConstraint); Runner.run(engine);
+            (function rerender() { bodies.forEach(({ el, body }) => { el.style.left = (body.position.x - el.offsetWidth/2) + 'px'; el.style.top = (body.position.y - el.offsetHeight/2) + 'px'; el.style.transform = `rotate(${body.angle}rad)`; }); requestAnimationFrame(rerender); })();
+          });
+        };
+
+        // --- GITHUB ---
+        const fetchLastSeen = async () => {
+          try {
+            const res = await fetch(`https://api.github.com/users/AndreaOsma/events/public`);
+            const events = await res.json();
+            const lastPush = events.find(e => e.type === 'PushEvent');
+            if (lastPush) {
+              const date = new Date(lastPush.created_at);
+              const diff = Math.floor((new Date() - date) / 1000 / 60);
+              let timeStr = diff < 60 ? `${diff}m` : diff < 1440 ? `${Math.floor(diff/60)}h` : `${Math.floor(diff/1440)}d`;
+              const statusText = document.getElementById('gh-status');
+              if (statusText) statusText.innerHTML += ` <span style="opacity:0.6; font-size: 0.9em; margin-left: 0.5rem;">| Coding ${timeStr} ago</span>`;
+            }
+          } catch (e) {}
+        };
+        fetchLastSeen();
+
+        // --- MOUSE GLOW ---
+        const glow = document.querySelector('.glow-layer');
+        document.addEventListener('mousemove', (e) => { if (glow) { glow.style.setProperty('--mouse-x', `${e.clientX}px`); glow.style.setProperty('--mouse-y', `${e.clientY}px`); } });
+
+        // --- FAVICON ---
+        const favicon = document.getElementById('dynamic-favicon');
+        if (favicon) {
+          favicon.href = `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌙</text></svg>`;
+        }
+        
+        // --- PILL FILTERS ---
+        const pills = document.querySelectorAll('.pill');
+        const projects = document.querySelectorAll('.project-card');
+        pills.forEach(pill => {
+          pill.addEventListener('click', () => {
+            const filter = pill.dataset.filter.toLowerCase();
+            pills.forEach(p => p.classList.remove('active')); pill.classList.add('active');
+            projects.forEach(project => {
+              const tags = project.dataset.tags;
+              if (filter === 'all' || tags.includes(filter)) { project.style.display = 'flex'; project.style.opacity = '1'; }
+              else { project.style.display = 'none'; project.style.opacity = '0'; }
+            });
+          });
+        });
+      });
+    </script>
+  </body>
+</html>
