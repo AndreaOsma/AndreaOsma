@@ -12,9 +12,4 @@ Infrastructure & Cloud: AWS, Terraform, Ansible, Docker, Kubernetes.
 - SecOps & Forensics: DAST, SIEM/SOAR, Hardening, low-level data extraction.
 - Networking: L2/L3 Architecture, TCP/IP, IDS/IPS.
 
-## Highlighted Work
-See my [website](https://andreaosma.com) to view my highlighted work. 
-
 Currently focused on DevSecOps and pursuing my degree in Telecommunications Engineering.
-
-📫 Reach me: [LinkedIn](https://linkedin.com/in/AndreaOsmaRafael)
